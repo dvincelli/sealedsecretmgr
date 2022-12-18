@@ -1,4 +1,4 @@
-`sealedsecret`: A tool to manage (SealedSecrets)[https://github.com/bitnami-labs/sealed-secrets]
+`sealedsecret`: A tool to manage [SealedSecrets](https://github.com/bitnami-labs/sealed-secrets)
 
 ## Installation
 
