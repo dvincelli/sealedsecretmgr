@@ -3,6 +3,7 @@
 from subprocess import Popen, PIPE
 from typing import Optional, List, Dict
 from tempfile import NamedTemporaryFile
+import enum
 import json
 
 
@@ -22,16 +23,22 @@ class ListSealedSecretError(Exception):
     pass
 
 
+class OutputFormat(str, enum.Enum):
+    json = "json"
+    yaml = "yaml"
+
+
 def create(
     name: str,
     key: str,
     value: str,
     namespace: str = "default",
     merge_into: Optional[str] = None,
+    output_format: OutputFormat = OutputFormat.json,
 ) -> str:
     """
-    Returns an unapplied SealedSecret as a JSON string. If `merge_into` is provided,
-    returns a path to a SealedSecret file in JSON format.
+    Returns an unapplied SealedSecret as a JSON or YAML string. If `merge_into` is provided,
+    returns a path to a SealedSecret file in JSON or YAML format.
     """
     proc = Popen(
         [
@@ -45,7 +52,7 @@ def create(
             "--dry-run=client",
             f"--from-file={key}=/dev/stdin",
             "-o",
-            "json",
+            output_format,
         ],
         stdin=PIPE,
         stdout=PIPE,
@@ -55,7 +62,7 @@ def create(
     if proc.returncode != 0:
         raise CreateSealedSecretError(stderr.decode())
 
-    kubeseal = ["kubeseal"]
+    kubeseal = ["kubeseal", "-o", output_format]
     if merge_into:
         kubeseal.append("--merge-into")
         kubeseal.append(merge_into)
@@ -69,27 +76,43 @@ def create(
     return stdout2.decode()
 
 
-def update(name: str, key: str, value: str, namespace: str = "default"):
+def update(
+    name: str,
+    key: str,
+    value: str,
+    namespace: str = "default",
+    output_format: OutputFormat = OutputFormat.yaml,
+):
     """
     Returns an unapplied SealedSecret matching name, as a JSON string. The updated
     secret is first retrieved from the k8s cluster by name. A SealedSecret matching
     key and value is then updated or added to the existing SealedSecret.
     """
-    sealed_secret_yaml = get(name, namespace=namespace)
+    sealed_secret_str = get(name, namespace=namespace, output_format=output_format)
     with NamedTemporaryFile("w+") as tmpfile:
-        tmpfile.write(sealed_secret_yaml)
+        tmpfile.write(sealed_secret_str)
         tmpfile.flush()
-        create(name, key, value, namespace=namespace, merge_into=tmpfile.name)
+        create(
+            name,
+            key,
+            value,
+            namespace=namespace,
+            merge_into=tmpfile.name,
+            output_format=output_format,
+        )
         tmpfile.seek(0)
         return tmpfile.read()
 
 
-def _list(namespace: str = "default") -> str:
+def _list(
+    namespace: str = "default", output_format: OutputFormat = OutputFormat.json
+) -> str:
     """
     Returns a JSON string of all SealedSecrets in namespace
     """
     proc = Popen(
-        ["kubectl", "-n", namespace, "get", "sealedsecret", "-o", "json"], stdout=PIPE
+        ["kubectl", "-n", namespace, "get", "sealedsecret", "-o", output_format],
+        stdout=PIPE,
     )
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
@@ -103,19 +126,23 @@ def list_names(namespace: str = "default") -> Dict[str, List[str]]:
     Returns a dictionary of SealedSecrets in namepsace, keyed by name, associated
     with a list of sub-key names
     """
-    secrets = json.loads(_list(namespace))
+    secrets = json.loads(_list(namespace, OutputFormat.json))
     return {
         s["metadata"]["name"]: list(s["spec"]["encryptedData"].keys())
         for s in secrets["items"]
     }
 
 
-def get(name: str, namespace: str = "default") -> str:
+def get(
+    name: str,
+    namespace: str = "default",
+    output_format: OutputFormat = OutputFormat.yaml,
+) -> str:
     """
     Returns a SealedSecret matching name, as a JSON string
     """
     proc = Popen(
-        ["kubectl", "-n", namespace, "get", "sealedsecret", name, "-o", "json"],
+        ["kubectl", "-n", namespace, "get", "sealedsecret", name, "-o", output_format],
         stdout=PIPE,
     )
     stdout, stderr = proc.communicate()
