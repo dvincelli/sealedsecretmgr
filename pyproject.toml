@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sealedsecretmgr"
-version = "0.1.0"
+version = "0.1.1"
 description = "SealedSecret Manager"
 authors = ["David Vincelli <david.vincelli@gmail.com>"]
 license = "Apache-2.0"
