@@ -9,7 +9,7 @@ repository = "https://github.com/dvincelli/sealedsecretmgr"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-black = "^22.12.0"
+black = ">=22.12,<25.0"
 
 
 [build-system]
