@@ -47,6 +47,6 @@ sealedsecret update existing-secret-name my-new-key a-value
 
 The update and create commands only print the resource, you can redirect the output of edit an update to a file and then apply it using `kubectl apply -f` or you can pipe directly to `kubectl apply -`. You can use the global argument `-o` to choose between JSON or the default YAML output.
 
-``
+```
 sealedsecret -o json create a-secret a-key a-value
 ```
